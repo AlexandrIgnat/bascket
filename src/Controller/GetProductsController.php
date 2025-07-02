@@ -7,6 +7,7 @@ namespace Raketa\BackendTestTask\Controller;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Raketa\BackendTestTask\View\ProductsView;
+use Raketa\BackendTestTask\Infrastructure\Response\JsonResponse;
 
 readonly class GetProductsController
 {

@@ -5,10 +5,14 @@ declare(strict_types = 1);
 namespace Raketa\BackendTestTask\Repository;
 
 use Doctrine\DBAL\Connection;
-use Raketa\BackendTestTask\Repository\Entity\Product;
+use Raketa\BackendTestTask\Domain\Category;
+use Raketa\BackendTestTask\Domain\Product;
+use Raketa\BackendTestTask\Repository\Traits\Logger;
 
 class ProductRepository
 {
+    use Logger;
+
     private Connection $connection;
 
     public function __construct(Connection $connection)
@@ -18,34 +22,48 @@ class ProductRepository
 
     public function getByUuid(string $uuid): Product
     {
-        $row = $this->connection->fetchOne(
-            "SELECT * FROM products WHERE uuid = " . $uuid,
-        );
+        $sql = "SELECT
+                p.*,
+                c.title as category_title,
+            FROM products p
+            JOIN categories c on p.category = categories.id
+            WHERE p.uuid like $uuid";
+
+        $row = $this->connection->fetchOne($sql);
 
         if (empty($row)) {
-            throw new Exception('Product not found');
+            $this->logger->error("Faild to find product, query : $sql");
+            throw new \Exception('Product not found');
         }
 
         return $this->make($row);
     }
 
-    public function getByCategory(string $category): array
+    public function getByCategory(int $categoryId): array
     {
         return array_map(
             static fn (array $row): Product => $this->make($row),
-            $this->connection->fetchAllAssociative(
-                "SELECT id FROM products WHERE is_active = 1 AND category = " . $category,
-            )
+                $this->connection->fetchAllAssociative(
+                    "SELECT
+                        p.*,
+                        c.title as category_title,
+                    FROM products p
+                    JOIN categories с on p.category = c.id
+                    WHERE is_active = 1 AND p.category = $categoryId",
+                )
         );
     }
 
-    public function make(array $row): Product
+    private function make(array $row): Product
     {
         return new Product(
             $row['id'],
             $row['uuid'],
             $row['is_active'],
-            $row['category'],
+            new Category(
+                $row['category'],
+                $row['category_title']
+            ),
             $row['name'],
             $row['description'],
             $row['thumbnail'],
